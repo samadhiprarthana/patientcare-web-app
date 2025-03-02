@@ -1,71 +1,96 @@
 
-// import User from "../models/UserSchema.js";
+import User from "../models/UserSchema.js";
 import Doctor from "../models/DoctorSchema.js";
 import jwt from "jsonwebtoken";
 import bcrypt  from "bcryptjs";
 
-export const register =async(req,res)=>{
+const genarateToken =user =>{
+     return jwt.sign({id:user._id,role:user.role},process.env.JWT_SECRET_key)
+}
 
-    const{email,password,name,role,photo,gender}=req.body
-    try{
+export const register = async (req, res) => {
+    const { email, password, name, role, photo, gender } = req.body;
+    
+    try {
+        let user = null;
 
-        let user= null 
-
-        if(role==='patient'){
-            user = await User.findOne({email})
-        }
-        else if(role==='doctor'){
-            user = await Doctor.findOne({email})
-        }
-
-        //check if user exist
-
-        if(user){
-            return res.this.status(400).json({message:"User already exists"})
+        if (role === "patient") {
+            user = await User.findOne({ email });
+        } else if (role === "doctor") {
+            user = await Doctor.findOne({ email });
         }
 
-        //hash password
-        const salt = await bcrypt.genSalt(10)
-        const hassPassword =await bcrypt.hash(password,salt)
+        // Check if user exists
+        if (user) {
+            return res.status(400).json({ message: "User already exists" }); 
+        }
 
-        if(role==='patient'){
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashPassword = await bcrypt.hash(password, salt);
+
+        if (role === "patient") {
             user = new User({
                 name,
                 email,
-                password:hassPassword,
+                password: hashPassword,
                 photo,
                 gender,
-                role
-            })
-        }
-
-        
-        if(role==='doctor'){
+                role,
+            });
+        } else if (role === "doctor") {
             user = new Doctor({
                 name,
                 email,
-                password:hassPassword,
+                password: hashPassword,
                 photo,
                 gender,
-                role
-            })
+                role,
+            });
         }
 
-        await user.save()
+        await user.save(); // Save user
 
-        res.state(200).json({success:true,message:"User succsessfully created"})
+        res.status(200).json({ success: true, message: "User successfully created" }); 
 
-    } catch (err){
-        res.state(500).json({success:false,message:"Internal server error ,Try again "})
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Internal server error, Try again" }); 
     }
-    
-}
+};
 
-export const login =async(req,res)=>{
-    try{
-      
-    } catch (err){
+export const login = async (req, res) => {
 
-    }
-    
-}
+    const { email, password } = req.body;
+    try {
+
+        let user=null
+
+        const patient = await User.findOne({ email });
+        const doctor = await Doctor.findOne({ email });
+       
+        if(patient){
+            user=patient
+        }
+        if(doctor){
+            user=doctor
+        }
+        //check if user exits or not
+        if(!user){
+            return res.status(400).json({ message: "User not found" }); 
+        }
+        //if user found
+        //compare password
+
+        const isPssswordMatch= await bcrypt.compare(password,user.password)
+        //if pw not matched 
+
+        if(!isPssswordMatch){
+            return res.status(400).json({status:false ,message: "Invalid credentials" }); 
+        }
+
+        //ge take 
+        const token =genarateToken(user)
+
+    }catch(err){}
+};
+
