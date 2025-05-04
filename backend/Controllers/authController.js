@@ -4,9 +4,17 @@ import Doctor from "../models/DoctorSchema.js";
 import jwt from "jsonwebtoken";
 import bcrypt  from "bcryptjs";
 
-const genarateToken =user =>{
-     return jwt.sign({id:user._id,role:user.role},process.env.JWT_SECRET_key)
-}
+const generateToken = user => {
+     return jwt.sign
+     ({id:user._id,role:user.role},
+        process.env.JWT_SECRET_key,
+        {
+        expiresIn:'15d',
+       }
+    );
+
+};
+
 
 export const register = async (req, res) => {
     const { email, password, name, role, photo, gender } = req.body;
@@ -51,19 +59,24 @@ export const register = async (req, res) => {
 
         await user.save(); // Save user
 
-        res.status(200).json({ success: true, message: "User successfully created" }); 
+        res
+        .status(200)
+        .json({ success: true, message: "User successfully created" }); 
 
     } catch (err) {
-        res.status(500).json({ success: false, message: "Internal server error, Try again" }); 
+        res.status(500).json({
+             success: false,
+            message: "Internal server error, Try again" 
+        }); 
     }
 };
 
 export const login = async (req, res) => {
 
-    const { email, password } = req.body;
+    const { email } = req.body;
     try {
 
-        let user=null
+        let user=null;
 
         const patient = await User.findOne({ email });
         const doctor = await Doctor.findOne({ email });
@@ -76,21 +89,49 @@ export const login = async (req, res) => {
         }
         //check if user exits or not
         if(!user){
-            return res.status(400).json({ message: "User not found" }); 
+            return res.status(404).json({ message: "User not found" }); 
         }
         //if user found
         //compare password
 
-        const isPssswordMatch= await bcrypt.compare(password,user.password)
+        const isPasswordMatch = await bcrypt.compare(
+            req.body.password,
+            user.password
+        );
+        
         //if pw not matched 
 
-        if(!isPssswordMatch){
-            return res.status(400).json({status:false ,message: "Invalid credentials" }); 
+        if(!isPasswordMatch){
+            return res
+            .status(400)
+            .json({status:false ,message: "Invalid credentials" }); 
         }
 
-        //ge take 
-        const token =genarateToken(user)
+        //ge toke 
+        const token =generateToken(user);
+        
+        const {password,role,appoinments,...rest}= user._doc
 
-    }catch(err){}
+        res
+        .status(200)
+        .json({
+            success: true,
+            message: "Login successful",
+            token,
+            data: {...rest},
+            role
+        });
+
+
+    }catch(err){
+
+        res
+        .status(500)
+        .json({
+            success: false,
+            message: "Faild to Login"
+            
+        });
+    }
 };
 
